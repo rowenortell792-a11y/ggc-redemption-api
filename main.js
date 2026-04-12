@@ -1,27 +1,26 @@
+// PULSE MICRO v0.1 - REAL BIOMETRIC
+let pulseScore = 0;
+let frequency = "1S";
+let gazeX = 0.5;
+let voiceStress = 0;
+let mouseActivity = 0;
+let waveformData = new Array(100).fill(0);
+
 const canvas = document.getElementById('waveform');
 const ctx = canvas.getContext('2d');
-let pulseScore = 0;
-
 canvas.width = 800;
 canvas.height = 200;
 
-function drawWaveform() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw waveform line
-    ctx.beginPath();
-    for (let i = 0; i < canvas.width; i += 10) {
-        const y = canvas.height/2 + Math.sin(Date.now()/500 + i/20) * pulseScore;
-        ctx.lineTo(i, y);
-    }
-    ctx.strokeStyle = '#00ff95';
-    ctx.stroke();
-    
-    // Update pulse score (0-100)
-    pulseScore = (pulseScore + 0.5) % 100;
-    document.getElementById('pulseScore').innerText = Math.floor(pulseScore);
-    document.getElementById('attention').innerText = Math.floor(pulseScore) + '%';
-    
-    requestAnimationFrame(drawWaveform);
-}
-drawWaveform();
+// WebGazer eye tracking
+const script = document.createElement('script');
+script.src = 'https://webgazer.cs.brown.edu/webgazer.js';
+script.onload = () => {
+    webgazer.setGazeListener((data) => {
+        if (data) gazeX = data.x / window.innerWidth;
+    }).begin();
+};
+document.head.appendChild(script);
+
+// Voice detection
+async function initVoice() {
+    const stream = await
