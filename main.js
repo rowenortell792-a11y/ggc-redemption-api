@@ -1,11 +1,10 @@
-// PULSE MICRO v0.1 - REAL BIOMETRIC
+// PULSE MICRO v0.1 - VOICE + TOUCH (No Camera)
 // CONFIDENTIAL - Trade Secret of GGC Holdings
 
 let pulseScore = 0;
 let frequency = "1S";
-let gazeX = 0.5;
 let voiceStress = 0;
-let mouseActivity = 0;
+let touchActivity = 0;
 let waveformData = new Array(100).fill(0);
 
 const canvas = document.getElementById('waveform');
@@ -13,17 +12,7 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 200;
 
-// WebGazer eye tracking
-const script = document.createElement('script');
-script.src = 'https://webgazer.cs.brown.edu/webgazer.js';
-script.onload = () => {
-    webgazer.setGazeListener((data) => {
-        if (data) gazeX = data.x / window.innerWidth;
-    }).begin();
-};
-document.head.appendChild(script);
-
-// Voice stress detection
+// Voice stress detection (WORKS ON IPHONE)
 async function initVoice() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -42,24 +31,31 @@ async function initVoice() {
             requestAnimationFrame(detectStress);
         }
         detectStress();
+        document.getElementById('voiceStatus').innerText = 'READY';
     } catch(e) {
-        console.log("Voice permission denied");
+        document.getElementById('voiceStatus').innerText = 'BLOCKED';
     }
 }
 
-// Mouse engagement
+// Touch engagement (WORKS ON IPHONE)
+document.addEventListener('touchmove', () => {
+    touchActivity = Math.min(1, touchActivity + 0.1);
+    setTimeout(() => { touchActivity *= 0.95; }, 100);
+    document.getElementById('engageStatus').innerText = Math.floor(touchActivity * 100) + '%';
+});
+
 document.addEventListener('mousemove', () => {
-    mouseActivity = Math.min(1, mouseActivity + 0.1);
-    setTimeout(() => { mouseActivity *= 0.95; }, 100);
+    touchActivity = Math.min(1, touchActivity + 0.1);
+    setTimeout(() => { touchActivity *= 0.95; }, 100);
+    document.getElementById('engageStatus').innerText = Math.floor(touchActivity * 100) + '%';
 });
 
 function drawWaveform() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Real biometric inputs
-    let amplitude = (Math.abs(gazeX - 0.5) * 2) * 0.5;
-    amplitude += voiceStress * 0.8;
-    amplitude += mouseActivity * 0.3;
+    // Voice is primary input (80%), touch is secondary (20%)
+    let amplitude = voiceStress * 0.8;
+    amplitude += touchActivity * 0.2;
     amplitude = Math.min(0.9, Math.max(0.05, amplitude));
     
     waveformData.push(amplitude);
