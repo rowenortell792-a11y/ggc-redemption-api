@@ -154,9 +154,10 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
         </div>
     </div>
     <script>
+        // PULSE ENGINE - NOW WITH WORKING ANIMATION
         let pulseScore = 50;
         let frequency = "3M";
-        let targetScore = 50;
+        let increasing = true;
         let waveformData = new Array(50).fill(0);
         
         const canvas = document.getElementById('waveform');
@@ -164,6 +165,7 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
         canvas.width = 400;
         canvas.height = 80;
         
+        // Word frequency values
         const wordValues = {
             "darkness": 10, "void": 10, "silence": 10, "sleep": 10,
             "whisper": 25, "dream": 25, "fade": 25, "soft": 25,
@@ -174,29 +176,51 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
             "one": 95, "absolute": 95, "law": 95, "ggc": 95
         };
         
-        function analyzeTextAndUpdatePulse() {
+        // Analyze text and update target
+        function analyzeText() {
             const text = document.getElementById('editor').value;
             const words = text.toLowerCase().split(/\W+/);
-            let totalValue = 0, count = 0;
-            for (let word of words) {
-                if (wordValues[word]) {
-                    totalValue += wordValues[word];
+            let total = 0, count = 0;
+            for (let w of words) {
+                if (wordValues[w]) {
+                    total += wordValues[w];
                     count++;
                 }
             }
-            targetScore = count > 0 ? totalValue / count : 45;
-            let wordFreq = targetScore < 15 ? "1S" : targetScore < 30 ? "2S" : targetScore < 45 ? "3M" : targetScore < 55 ? "4M" : targetScore < 70 ? "5M" : targetScore < 85 ? "6X" : "7X";
+            let avg = count > 0 ? total / count : 45;
+            let wordFreq = avg < 15 ? "1S" : avg < 30 ? "2S" : avg < 45 ? "3M" : avg < 55 ? "4M" : avg < 70 ? "5M" : avg < 85 ? "6X" : "7X";
             document.getElementById('wordFreq').innerText = wordFreq;
+            return avg;
         }
         
-        function drawWaveform() {
+        // Animation loop - this runs continuously
+        function animateWaveform() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (pulseScore < targetScore) { pulseScore += 0.5; if (pulseScore > targetScore) pulseScore = targetScore; }
-            else if (pulseScore > targetScore) { pulseScore -= 0.5; if (pulseScore < targetScore) pulseScore = targetScore; }
-            frequency = pulseScore < 15 ? "1S" : pulseScore < 30 ? "2S" : pulseScore < 45 ? "3M" : pulseScore < 55 ? "4M" : pulseScore < 70 ? "5M" : pulseScore < 85 ? "6X" : "7X";
-            const amplitude = pulseScore / 100;
-            waveformData.push(amplitude);
+            
+            // Move pulse up and down
+            if (increasing) {
+                pulseScore += 0.5;
+                if (pulseScore >= 100) increasing = false;
+            } else {
+                pulseScore -= 0.5;
+                if (pulseScore <= 0) increasing = true;
+            }
+            
+            // Update frequency
+            if (pulseScore < 15) frequency = "1S";
+            else if (pulseScore < 30) frequency = "2S";
+            else if (pulseScore < 45) frequency = "3M";
+            else if (pulseScore < 55) frequency = "4M";
+            else if (pulseScore < 70) frequency = "5M";
+            else if (pulseScore < 85) frequency = "6X";
+            else frequency = "7X";
+            
+            // Update waveform buffer
+            const amp = pulseScore / 100;
+            waveformData.push(amp);
             waveformData.shift();
+            
+            // Draw the wave
             ctx.beginPath();
             for (let i = 0; i < waveformData.length; i++) {
                 const x = (i / (waveformData.length - 1)) * canvas.width;
@@ -206,9 +230,13 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
             ctx.strokeStyle = '#00ff95';
             ctx.lineWidth = 2;
             ctx.stroke();
+            
+            // Update display
             document.getElementById('frequency').innerText = frequency;
             document.getElementById('pulseScore').innerText = Math.floor(pulseScore);
-            requestAnimationFrame(drawWaveform);
+            
+            // Keep animating
+            requestAnimationFrame(animateWaveform);
         }
         
         function validateCanon() {
@@ -227,7 +255,9 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
             document.getElementById('rule2').style.color = rule2 ? '#00ff95' : '#ff0055';
             document.getElementById('rule3').style.color = rule3 ? '#00ff95' : '#ff0055';
             document.getElementById('rule4').style.color = rule4 ? '#00ff95' : '#ff0055';
-            document.getElementById('validationStatus').innerHTML = (rule1 && rule2 && rule3 && rule4) ? '✓ CANON VALID' : '✗ CANON VIOLATION';
+            const allPass = rule1 && rule2 && rule3 && rule4;
+            document.getElementById('validationStatus').innerHTML = allPass ? '✓ CANON VALID' : '✗ CANON VIOLATION';
+            document.getElementById('validationStatus').style.color = allPass ? '#00ff95' : '#ff0055';
         }
         
         function updateStats() {
@@ -235,19 +265,41 @@ The Pulse moves through the words as you write. Each sentence carries frequency.
             const words = text.split(/\W+/).filter(w => w.length > 0);
             document.getElementById('charCount').innerHTML = text.length + ' characters';
             document.getElementById('wordCount').innerHTML = words.length + ' words';
-            analyzeTextAndUpdatePulse();
+            analyzeText();
             validateCanon();
         }
         
-        function saveChapter() { localStorage.setItem('ggc_chapter', document.getElementById('editor').value); document.getElementById('validationStatus').innerHTML = '✓ SAVED'; setTimeout(() => validateCanon(), 1000); }
-        function exportGGC() { const content = document.getElementById('editor').value; const blob = new Blob([content], {type: 'text/plain'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'chapter.ggc'; a.click(); URL.revokeObjectURL(blob); }
-        function newChapter() { document.getElementById('editor').value = `# GGC CANON\n\n## Frequency: 3M\n\nBegin your canon here.\n\n— Written Picture`; updateStats(); }
+        function saveChapter() {
+            localStorage.setItem('ggc_chapter', document.getElementById('editor').value);
+            document.getElementById('validationStatus').innerHTML = '✓ SAVED';
+            setTimeout(() => validateCanon(), 1000);
+        }
         
+        function exportGGC() {
+            const content = document.getElementById('editor').value;
+            const blob = new Blob([content], {type: 'text/plain'});
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = 'chapter.ggc';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function newChapter() {
+            document.getElementById('editor').value = `# GGC CANON\n\n## Frequency: 3M\n\nBegin your canon here.\n\n— Written Picture`;
+            updateStats();
+        }
+        
+        // Load saved chapter
         const saved = localStorage.getItem('ggc_chapter');
         if (saved) document.getElementById('editor').value = saved;
+        
+        // Set up event listeners
         document.getElementById('editor').addEventListener('input', updateStats);
-        analyzeTextAndUpdatePulse();
-        drawWaveform();
+        
+        // Start the animation
+        animateWaveform();
         updateStats();
     </script>
 </body>
